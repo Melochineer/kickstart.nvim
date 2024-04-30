@@ -183,6 +183,11 @@ vim.o.foldmethod = 'expr'
 vim.o.foldexpr = 'nvim_treesitter#foldexpr()'
 vim.o.foldlevelstart = 99
 
+vim.keymap.set('c', '<C-p>', function()
+  -- Paste from the '+' register without appending it again
+  vim.fn.feedkeys(vim.api.nvim_replace_termcodes('<C-R>+', true, false, true), 'n')
+end, { desc = 'Paste from clipboard in command mode' })
+
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
 -- is not what someone will guess without a bit more experience.
@@ -575,9 +580,6 @@ require('lazy').setup({
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
         clangd = {
-          keys = {
-            { '<leader>cR', '<cmd>ClangdSwitchSourceHeader<cr>', desc = 'Switch Source/Header (C/C++)' },
-          },
           root_dir = function(fname)
             return require('lspconfig.util').root_pattern(
               'Makefile',
@@ -602,14 +604,16 @@ require('lazy').setup({
             '--completion-style=detailed',
             '--function-arg-placeholders',
             '--fallback-style=llvm',
-            '--query-driver=/mnt/c/Users/erudi/AppData/Roaming/ClangPowerTools/LLVM_Lite/Bin/clang++.exe,/usr/bin/clang*',
-            '--log=verbose',
           },
           init_options = {
             usePlaceholders = true,
             completeUnimported = true,
             clangdFileStatus = true,
           },
+          on_attach = function(client, bufnr)
+            -- Set keymapping specific to C/C++ development with clangd
+            vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>h', '<cmd>ClangdSwitchSourceHeader<CR>', { noremap = true, silent = true })
+          end,
         },
         -- gopls = {},
         -- pyright = {},
