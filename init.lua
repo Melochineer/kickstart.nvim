@@ -166,6 +166,9 @@ vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous [D]
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next [D]iagnostic message' })
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
+vim.keymap.set('n', '<leader>fr', function()
+  require('telescope.builtin').lsp_references()
+end, { noremap = true, silent = true, desc = '[F]ind [R]eferences' })
 
 -- Key mappings for moving lines or blocks of text up and down.
 -- Using <Alt-Up> to move the current line or visual selection up.
@@ -370,9 +373,9 @@ require('lazy').setup({
         'nvim-telescope/telescope-file-browser.nvim',
         dependencies = { 'nvim-telescope/telescope.nvim', 'nvim-lua/plenary.nvim' },
         config = function()
-          vim.keymap.set('n', '<space>fb', function()
+          vim.keymap.set('n', '<leader>fb', function()
             require('telescope').extensions.file_browser.file_browser()
-          end)
+          end, { desc = '[F]ile [B]rowser' })
         end,
       },
 
