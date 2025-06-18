@@ -285,11 +285,21 @@ vim.keymap.set('n', '<leader>lp', ":lua require'dap'.set_breakpoint(nil, nil, vi
 vim.keymap.set('n', '<leader>dr', ":lua require'dap'.repl.open()<CR>")
 
 vim.keymap.set('n', '<leader>ov', function()
-  vim.cmd('w') -- Save the current buffer
-  local file = vim.fn.shellescape(vim.fn.escape(vim.fn.expand('%:p'), "\\"))
+  vim.cmd 'w' -- Save the current buffer
+  local file = vim.fn.shellescape(vim.fn.escape(vim.fn.expand '%:p', '\\'))
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
-  vim.cmd('!powershell -File C:\\Users\\Andrew\\AppData\\Local\\nvim\\open_in_vs.ps1 \\\"' .. file .. '\\\" ' .. row .. ' ' .. col + 1)
+  vim.cmd('!powershell -File C:\\Users\\Andrew\\AppData\\Local\\nvim\\open_in_vs.ps1 \\"' .. file .. '\\" ' .. row .. ' ' .. col + 1)
 end, { desc = '[O]pen [V]isual Studio' })
+
+vim.keymap.set('n', '<leader>ym', function()
+  local message = vim.fn.execute '1messages'
+  if message ~= '' then
+    vim.fn.setreg('+', message)
+    vim.notify('Copied last message to clipboard: ' .. message, vim.log.levels.INFO)
+  else
+    vim.notify('No messages found', vim.log.levels.WARN)
+  end
+end, { desc = '[Y]ank [M]essage' })
 
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
@@ -313,7 +323,6 @@ if not vim.loop.fs_stat(lazypath) then
   vim.fn.system { 'git', 'clone', '--filter=blob:none', '--branch=stable', lazyrepo, lazypath }
 end ---@diagnostic disable-next-line: undefined-field
 vim.opt.rtp:prepend(lazypath)
-
 
 -- [[ Configure and install plugins ]]
 --
@@ -400,12 +409,17 @@ require('lazy').setup({
       require('which-key').setup()
 
       -- Document existing key chains
-      require('which-key').register {
-        ['<leader>c'] = { name = '[C]ode', _ = 'which_key_ignore' },
-        ['<leader>d'] = { name = '[D]ocument', _ = 'which_key_ignore' },
-        ['<leader>r'] = { name = '[R]ename', _ = 'which_key_ignore' },
-        ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
-        ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
+      require('which-key').add {
+        { '<leader>c', group = '[C]ode' },
+        { '<leader>c_', hidden = true },
+        { '<leader>d', group = '[D]ocument' },
+        { '<leader>d_', hidden = true },
+        { '<leader>r', group = '[R]ename' },
+        { '<leader>r_', hidden = true },
+        { '<leader>s', group = '[S]earch' },
+        { '<leader>s_', hidden = true },
+        { '<leader>w', group = '[W]orkspace' },
+        { '<leader>w_', hidden = true },
       }
     end,
   },
@@ -507,18 +521,18 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sf', function()
-        builtin.find_files({
+        builtin.find_files {
           search_dirs = {
             'F:\\Visual_Studio\\bh_engine',
             'C:\\Users\\Andrew\\Documents\\My Games\\Veilslash',
             'C:\\svn\\repo\\Da_Vi_Media',
-            'C:\\Users\\Andrew\\AppData\\Local\\nvim'
+            'C:\\Users\\Andrew\\AppData\\Local\\nvim',
           },
           prompt_title = 'Game Save & BH Engine Files',
           follow = true, -- Follow symlinks
           hidden = false, -- Exclude hidden files
           no_ignore = false, -- Respect .gitignore
-        })
+        }
       end, { desc = '[S]earch [F]iles in Save & BH Engine' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
@@ -560,6 +574,7 @@ require('lazy').setup({
       'williamboman/mason.nvim',
       'williamboman/mason-lspconfig.nvim',
       'WhoIsSethDaniel/mason-tool-installer.nvim',
+      { 'p00f/clangd_extensions.nvim' },
 
       -- Useful status updates for LSP.
       -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
@@ -570,6 +585,66 @@ require('lazy').setup({
       { 'folke/neodev.nvim', opts = {} },
     },
     config = function()
+      -- Enable the following language servers
+      --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
+      --
+      --  Add any additional override configuration in the following tables. Available keys are:
+      --  - cmd (table): Override the default command used to start the server
+      --  - filetypes (table): Override the default list of associated filetypes for the server
+      --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
+      --  - settings (table): Override the default settings passed when initializing the server.
+      --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
+      local servers = {
+        clangd = {
+          root_dir = function(fname)
+            return require('lspconfig.util').root_pattern(
+              'Makefile',
+              'configure.ac',
+              'configure.in',
+              'config.h.in',
+              'meson.build',
+              'meson_options.txt',
+              'build.ninja'
+            )(fname) or require('lspconfig.util').root_pattern('compile_commands.json', 'compile_flags.txt')(fname) or require('lspconfig.util').find_git_ancestor(
+              fname
+            )
+          end,
+          capabilities = {
+            offsetEncoding = { 'utf-16' },
+          },
+          cmd = {
+            'clangd',
+            '--background-index',
+            '--clang-tidy',
+            '--header-insertion=iwyu',
+            '--completion-style=detailed',
+            '--function-arg-placeholders',
+            '--fallback-style=llvm',
+            '--use-dirty-headers',
+          },
+          init_options = {
+            usePlaceholders = true,
+            completeUnimported = true,
+            clangdFileStatus = true,
+          },
+        },
+
+        lua_ls = {
+          -- cmd = {...},
+          -- filetypes = { ...},
+          -- capabilities = {},
+          settings = {
+            Lua = {
+              completion = {
+                callSnippet = 'Replace',
+              },
+              -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
+              -- diagnostics = { disable = { 'missing-fields' } },
+            },
+          },
+        },
+      }
+
       --  This function gets run when an LSP attaches to a particular buffer.
       --    That is to say, every time a new file is opened that is associated with
       --    an lsp (for example, opening `main.rs` is associated with `rust_analyzer`) this
@@ -649,6 +724,19 @@ require('lazy').setup({
               buffer = event.buf,
               callback = vim.lsp.buf.clear_references,
             })
+
+            -- Server-specific configuration for clangd
+            if client and client.name == 'clangd' then
+              vim.api.nvim_buf_set_keymap(event.buf, 'n', '<leader>h', '<cmd>ClangdSwitchSourceHeader<CR>', { noremap = true, silent = true })
+              if client.server_capabilities.document_formatting then
+                vim.cmd [[
+                  augroup LspFormatting
+                      autocmd! * <buffer>
+                      autocmd BufWritePre <buffer> lua vim.lsp.buf.formatting_sync()
+                  augroup END
+              ]]
+              end
+            end
           end
         end,
       })
@@ -659,89 +747,6 @@ require('lazy').setup({
       --  So, we create new capabilities with nvim cmp, and then broadcast that to the servers.
       local capabilities = vim.lsp.protocol.make_client_capabilities()
       capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
-
-      -- Enable the following language servers
-      --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
-      --
-      --  Add any additional override configuration in the following tables. Available keys are:
-      --  - cmd (table): Override the default command used to start the server
-      --  - filetypes (table): Override the default list of associated filetypes for the server
-      --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
-      --  - settings (table): Override the default settings passed when initializing the server.
-      --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
-      local servers = {
-        clangd = {
-          root_dir = function(fname)
-            return require('lspconfig.util').root_pattern(
-              'Makefile',
-              'configure.ac',
-              'configure.in',
-              'config.h.in',
-              'meson.build',
-              'meson_options.txt',
-              'build.ninja'
-            )(fname) or require('lspconfig.util').root_pattern('compile_commands.json', 'compile_flags.txt')(fname) or require('lspconfig.util').find_git_ancestor(
-              fname
-            )
-          end,
-          capabilities = {
-            offsetEncoding = { 'utf-16' },
-          },
-          cmd = {
-            'clangd',
-            '--background-index',
-            '--clang-tidy',
-            '--header-insertion=iwyu',
-            '--completion-style=detailed',
-            '--function-arg-placeholders',
-            '--fallback-style=llvm',
-            '--use-dirty-headers',
-          },
-          init_options = {
-            usePlaceholders = true,
-            completeUnimported = true,
-            clangdFileStatus = true,
-          },
-          on_attach = function(client, bufnr)
-            -- Set keymapping specific to C/C++ development with clangd
-            vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>h', '<cmd>ClangdSwitchSourceHeader<CR>', { noremap = true, silent = true })
-            if client.server_capabilities.document_formatting then
-              vim.cmd [[
-                augroup LspFormatting
-                    autocmd! * <buffer>
-                    autocmd BufWritePre <buffer> lua vim.lsp.buf.formatting_sync()
-                augroup END
-            ]]
-            end
-          end,
-        },
-        -- gopls = {},
-        -- pyright = {},
-        -- rust_analyzer = {},
-        -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
-        --
-        -- Some languages (like typescript) have entire language plugins that can be useful:
-        --    https://github.com/pmizio/typescript-tools.nvim
-        --
-        -- But for many setups, the LSP (`tsserver`) will work just fine
-        -- tsserver = {},
-        --
-
-        lua_ls = {
-          -- cmd = {...},
-          -- filetypes = { ...},
-          -- capabilities = {},
-          settings = {
-            Lua = {
-              completion = {
-                callSnippet = 'Replace',
-              },
-              -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-              -- diagnostics = { disable = { 'missing-fields' } },
-            },
-          },
-        },
-      }
 
       -- Ensure the servers and tools above are installed
       --  To check the current status of installed tools and/or manually install
