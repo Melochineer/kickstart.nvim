@@ -4,26 +4,19 @@ param (
     [int]$column = 1
 )
 
-# Normalize column to 1-based (minimum 1)
-$column = [Math]::Max(1, $column)
-
 # Start Visual Studio with file
-Start-Process -FilePath "devenv" -ArgumentList "/edit $file" -NoNewWindow
+Start-Process -FilePath "devenv" -ArgumentList "/edit $file"
 
 # Retry DTE connection until success or timeout
-$timeoutSeconds = 15
-$retryIntervalMs = 500
-$elapsed = 0
+$timeoutSeconds = 3
 $dte = $null
+$activeDoc = $null
+$selection = $null
+$timer = [Diagnostics.Stopwatch]::StartNew()
 
-while ($null -eq $dte -and $elapsed -lt $timeoutSeconds * 1000) {
-    try {
-        $dte = [System.Runtime.InteropServices.Marshal]::GetActiveObject("VisualStudio.DTE")
-    }
-    catch {
-        Start-Sleep -Milliseconds $retryIntervalMs
-        $elapsed += $retryIntervalMs
-    }
+while ($null -eq $dte -and $timer.elapsed.totalseconds -lt $timeoutSeconds)
+{
+    $dte = [System.Runtime.InteropServices.Marshal]::GetActiveObject("VisualStudio.DTE")
 }
 
 if ($null -eq $dte) {
@@ -31,33 +24,29 @@ if ($null -eq $dte) {
     exit 1
 }
 
-try {
-    $doc = $dte.ActiveDocument
-    if ($doc.FullName -ne $file) {
-        $dte.ExecuteCommand("File.OpenFile", $file)
-        Start-Sleep -Milliseconds 500
-    }
+$dte.MainWindow.Activate()
+$timer = [Diagnostics.Stopwatch]::StartNew()
+
+while ($null -eq $activeDoc -and $timer.elapsed.totalseconds -lt $timeoutSeconds)
+{
     $activeDoc = $dte.ActiveDocument
-    $textDoc = $activeDoc.Object("TextDocument")
-    
-    # Validate line number
-    $endPoint = $textDoc.EndPoint
-    $maxLines = $endPoint.Line
-    $line = [Math]::Max(1, [Math]::Min($line, $maxLines))
-    
-    # Validate column number
-    $startPoint = $textDoc.StartPoint.CreateEditPoint()
-    $startPoint.MoveToLineAndOffset($line, 1)
-    $lineEndPoint = $startPoint.CreateEditPoint()
-    $lineEndPoint.EndOfLine()
-    $lineLength = $lineEndPoint.AbsoluteCharOffset - $startPoint.AbsoluteCharOffset + 1
-    $column = [Math]::Max(1, [Math]::Min($column, $lineLength))
-    
-    $selection = $activeDoc.Selection
-    $selection.MoveToLineAndOffset($line, $column)
-    $dte.MainWindow.Activate()
 }
-catch {
-    Write-Error "Failed to set cursor position: $_"
+
+if ($null -eq $activeDoc) {
+    Write-Error "Failed to get to Active Document after $timeoutSeconds seconds"
     exit 1
 }
+
+$timer = [Diagnostics.Stopwatch]::StartNew()
+
+while ($null -eq $selection -and $timer.elapsed.totalseconds -lt $timeoutSeconds)
+{
+	$selection = $activeDoc.Selection
+}
+
+if ($null -eq $selection) {
+    Write-Error "Failed to get to Selection after $timeoutSeconds seconds"
+    exit 1
+}
+
+$selection.MoveToLineAndOffset($line, $column)

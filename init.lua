@@ -286,10 +286,9 @@ vim.keymap.set('n', '<leader>dr', ":lua require'dap'.repl.open()<CR>")
 
 vim.keymap.set('n', '<leader>ov', function()
   vim.cmd('w') -- Save the current buffer
-  local file = vim.fn.expand('%:p')
+  local file = vim.fn.shellescape(vim.fn.escape(vim.fn.expand('%:p'), "\\"))
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
-  vim.notify('!powershell -File C:\\Users\\Andrew\\AppData\\Local\\nvim\\open_in_vs.ps1 ' .. vim.fn.shellescape(file) .. ' ' .. row .. ' ' .. col)
-  vim.cmd('!powershell -File C:\\Users\\Andrew\\AppData\\Local\\nvim\\open_in_vs.ps1 ' .. vim.fn.shellescape(file) .. ' ' .. row .. ' ' .. col)
+  vim.cmd('!powershell -File C:\\Users\\Andrew\\AppData\\Local\\nvim\\open_in_vs.ps1 \\\"' .. file .. '\\\" ' .. row .. ' ' .. col + 1)
 end, { desc = '[O]pen [V]isual Studio' })
 
 -- [[ Basic Autocommands ]]
@@ -507,7 +506,20 @@ require('lazy').setup({
       local builtin = require 'telescope.builtin'
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
-      vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
+      vim.keymap.set('n', '<leader>sf', function()
+        builtin.find_files({
+          search_dirs = {
+            'F:\\Visual_Studio\\bh_engine',
+            'C:\\Users\\Andrew\\Documents\\My Games\\Veilslash',
+            'C:\\svn\\repo\\Da_Vi_Media',
+            'C:\\Users\\Andrew\\AppData\\Local\\nvim'
+          },
+          prompt_title = 'Game Save & BH Engine Files',
+          follow = true, -- Follow symlinks
+          hidden = false, -- Exclude hidden files
+          no_ignore = false, -- Respect .gitignore
+        })
+      end, { desc = '[S]earch [F]iles in Save & BH Engine' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
       vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
