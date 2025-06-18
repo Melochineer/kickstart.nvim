@@ -154,11 +154,6 @@ vim.opt.cursorline = true
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.opt.scrolloff = 10
 
-vim.opt.expandtab = false
-vim.opt.tabstop = 5
-vim.opt.shiftwidth = 0
-vim.opt.softtabstop = 0
-
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
@@ -175,12 +170,6 @@ vim.keymap.set('n', '<leader>fr', function()
   require('telescope.builtin').lsp_references()
 end, { noremap = true, silent = true, desc = '[F]ind [R]eferences' })
 
-vim.keymap.set('n', '<leader>yp', function()
-  local filepath = vim.fn.expand '%:p'
-  vim.fn.setreg('+', filepath)
-  print('Copied file path to clipboard: ' .. filepath)
-end, { desc = '[Y]ank [P]ath' })
-
 -- Key mappings for moving lines or blocks of text up and down.
 -- Using <Alt-Up> to move the current line or visual selection up.
 -- Using <Alt-Down> to move the current line or visual selection down.
@@ -191,56 +180,6 @@ vim.api.nvim_set_keymap('i', '<A-k>', '<Esc>:m .-2<CR>==gi', { noremap = true, s
 vim.api.nvim_set_keymap('i', '<A-j>', '<Esc>:m .+1<CR>==gi', { noremap = true, silent = true })
 vim.api.nvim_set_keymap('v', '<A-k>', ":m '<-2<CR>gv=gv", { noremap = true, silent = true })
 vim.api.nvim_set_keymap('v', '<A-j>', ":m '>+1<CR>gv=gv", { noremap = true, silent = true })
-
--- vim-yoink configuration for normal mode
-vim.api.nvim_set_keymap('n', '<C-n>', '<Plug>(YoinkPostPasteSwapBack)', {})
-vim.api.nvim_set_keymap('n', '<C-p>', '<Plug>(YoinkPostPasteSwapForward)', {})
-
-vim.api.nvim_set_keymap('n', 'p', '<Plug>(YoinkPaste_p)', {})
-vim.api.nvim_set_keymap('n', 'P', '<Plug>(YoinkPaste_P)', {})
-vim.api.nvim_set_keymap('n', 'gp', '<Plug>(YoinkPaste_gp)', {})
-vim.api.nvim_set_keymap('n', 'gP', '<Plug>(YoinkPaste_gP)', {})
-
--- vim-subversive configuration for visual mode
-vim.api.nvim_set_keymap('x', 'p', '<Plug>(SubversiveSubstitute)', {})
-vim.api.nvim_set_keymap('x', 'P', '<Plug>(SubversiveSubstitute)', {})
-
--- Additional yoink mappings
-vim.api.nvim_set_keymap('n', '[y', '<Plug>(YoinkRotateBack)', {})
-vim.api.nvim_set_keymap('n', ']y', '<Plug>(YoinkRotateForward)', {})
-vim.api.nvim_set_keymap('n', '<C-=>', '<Plug>(YoinkPostPasteToggleFormat)', {})
-vim.api.nvim_set_keymap('n', 'y', '<Plug>(YoinkYankPreserveCursorPosition)', {})
-vim.api.nvim_set_keymap('x', 'y', '<Plug>(YoinkYankPreserveCursorPosition)', {})
-
--- Neovide specific settings
-if vim.g.neovide then
-  -- Enable smooth scrolling
-  vim.g.neovide_scroll_animation_length = 0.3
-
-  -- Enable cursor animation
-  vim.g.neovide_cursor_animation_length = 0
-
-  -- Set the cursor trail length
-  vim.g.neovide_cursor_trail_size = 0
-
-  -- Set font (make sure to use double backslashes for escape)
-  vim.opt.guifont = 'Source Code Pro:h11'
-
-  -- No idle when moving the cursor
-  vim.g.neovide_no_idle_when_moving = true
-
-  -- Scale factor for higher DPI displays
-  vim.g.neovide_scale_factor = 1.0
-
-  -- Hide mouse when typing
-  vim.g.neovide_hide_mouse_when_typing = true
-
-  -- Custom setting: remember window size
-  vim.g.neovide_remember_window_size = true
-
-  -- Custom setting: cursor vibration for keypress
-  vim.g.neovide_cursor_vfx_mode = ''
-end
 
 -- Setting foldmethod and foldexpr globally for all buffers
 vim.o.foldmethod = 'expr'
@@ -298,6 +237,14 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
+vim.keymap.set('n', '<leader>ov', function()
+  vim.cmd('w') -- Save the current buffer
+  local file = vim.fn.expand('%:p')
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  vim.notify('!powershell -File C:\\Users\\Andrew\\AppData\\Local\\nvim\\open_in_vs.ps1 ' .. vim.fn.shellescape(file) .. ' ' .. row .. ' ' .. col)
+  vim.cmd('!powershell -File C:\\Users\\Andrew\\AppData\\Local\\nvim\\open_in_vs.ps1 ' .. vim.fn.shellescape(file) .. ' ' .. row .. ' ' .. col)
+end, { desc = '[O]pen [V]isual Studio' })
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
@@ -320,7 +267,7 @@ vim.opt.rtp:prepend(lazypath)
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
-  --'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
+  'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
 
   -- NOTE: Plugins can also be added by using a table,
   -- with the first argument being the link and the following
@@ -606,12 +553,6 @@ require('lazy').setup({
           --  For example, in C this would take you to the header.
           map('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
 
-          -- Navigate to the next diagnostic (error or warning)
-          map('<leader>dn', vim.diagnostic.goto_next, 'Go to [N]ext diagnostic')
-
-          -- Navigate to the previous diagnostic (error or warning)
-          map('<leader>dp', vim.diagnostic.goto_prev, 'Go to [P]revious diagnostic')
-
           -- The following two autocommands are used to highlight references of the
           -- word under your cursor when your cursor rests there for a little while.
           --    See `:help CursorHold` for information about when this is executed
@@ -674,7 +615,6 @@ require('lazy').setup({
             '--completion-style=detailed',
             '--function-arg-placeholders',
             '--fallback-style=llvm',
-            '--use-dirty-headers',
           },
           init_options = {
             usePlaceholders = true,
@@ -684,14 +624,6 @@ require('lazy').setup({
           on_attach = function(client, bufnr)
             -- Set keymapping specific to C/C++ development with clangd
             vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>h', '<cmd>ClangdSwitchSourceHeader<CR>', { noremap = true, silent = true })
-            if client.server_capabilities.document_formatting then
-              vim.cmd [[
-                augroup LspFormatting
-                    autocmd! * <buffer>
-                    autocmd BufWritePre <buffer> lua vim.lsp.buf.formatting_sync()
-                augroup END
-            ]]
-            end
           end,
         },
         -- gopls = {},
@@ -714,6 +646,9 @@ require('lazy').setup({
             Lua = {
               completion = {
                 callSnippet = 'Replace',
+              },
+              diagnostics = {
+                globals = { 'vim' },
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
               -- diagnostics = { disable = { 'missing-fields' } },
@@ -759,12 +694,12 @@ require('lazy').setup({
     lazy = false,
     keys = {
       {
-        '<leader>fd',
+        '<leader>ff',
         function()
           require('conform').format { async = true, lsp_fallback = true }
         end,
         mode = '',
-        desc = '[F]ormat [D]ocument',
+        desc = '[F]ormat [F]ile',
       },
     },
     opts = {
@@ -781,7 +716,6 @@ require('lazy').setup({
       end,
       formatters_by_ft = {
         lua = { 'stylua' },
-        cpp = { 'clang-format' },
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
@@ -816,6 +750,8 @@ require('lazy').setup({
             'rafamadriz/friendly-snippets',
             config = function()
               require('luasnip.loaders.from_vscode').lazy_load()
+              require('luasnip').filetype_extend('lua', { 'luadoc' })
+              require('luasnip').filetype_extend('cpp', { 'cppdoc' })
             end,
           },
         },
@@ -897,6 +833,26 @@ require('lazy').setup({
     end,
   },
 
+  {
+    'ray-x/lsp_signature.nvim',
+    event = 'InsertEnter',
+    opts = {
+      bind = true, -- Bind the plugin to LSP
+      handler_opts = { border = 'rounded' }, -- Popup border style
+      floating_window = true, -- Show signature in a floating window
+      hint_enable = false, -- Disable inline hints (optional, keeps it cleaner)
+      always_trigger = true, -- Show signature help automatically on trigger characters
+      auto_close_after = nil, -- Keep popup open until done
+      toggle_key = '<C-s>', -- Optional key to toggle signature help
+      select_signature_key = '<C-n>', -- Optional key to cycle through multiple signatures
+      max_height = 12, -- Max height of the popup
+      max_width = 80, -- Max width of the popup
+      transparency = nil, -- Opaque popup (set to 10-100 for transparency)
+    },
+    config = function(_, opts)
+      require('lsp_signature').setup(opts)
+    end,
+  },
   { -- You can easily change to a different colorscheme.
     -- Change the name of the colorscheme plugin below, and then
     -- change the command in the config to whatever the name of that colorscheme is.
@@ -1057,9 +1013,6 @@ require('lazy').setup({
       'nvim-neotest/nvim-nio',
     },
   },
-  { 'https://github.com/Raimondi/delimitMate' },
-  { 'https://github.com/svermeulen/vim-yoink' },
-  { 'https://github.com/svermeulen/vim-subversive' },
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
