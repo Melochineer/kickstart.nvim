@@ -237,6 +237,14 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
+vim.keymap.set('n', '<leader>ov', function()
+  vim.cmd('w') -- Save the current buffer
+  local file = vim.fn.expand('%:p')
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  vim.notify('!powershell -File C:\\Users\\Andrew\\AppData\\Local\\nvim\\open_in_vs.ps1 ' .. vim.fn.shellescape(file) .. ' ' .. row .. ' ' .. col)
+  vim.cmd('!powershell -File C:\\Users\\Andrew\\AppData\\Local\\nvim\\open_in_vs.ps1 ' .. vim.fn.shellescape(file) .. ' ' .. row .. ' ' .. col)
+end, { desc = '[O]pen [V]isual Studio' })
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
@@ -639,6 +647,9 @@ require('lazy').setup({
               completion = {
                 callSnippet = 'Replace',
               },
+              diagnostics = {
+                globals = { 'vim' },
+              },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
               -- diagnostics = { disable = { 'missing-fields' } },
             },
@@ -683,12 +694,12 @@ require('lazy').setup({
     lazy = false,
     keys = {
       {
-        '<leader>f',
+        '<leader>ff',
         function()
           require('conform').format { async = true, lsp_fallback = true }
         end,
         mode = '',
-        desc = '[F]ormat buffer',
+        desc = '[F]ormat [F]ile',
       },
     },
     opts = {
@@ -697,7 +708,7 @@ require('lazy').setup({
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
         -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true }
+        local disable_filetypes = {}
         return {
           timeout_ms = 500,
           lsp_fallback = not disable_filetypes[vim.bo[bufnr].filetype],
@@ -735,12 +746,14 @@ require('lazy').setup({
           -- `friendly-snippets` contains a variety of premade snippets.
           --    See the README about individual language/framework/plugin snippets:
           --    https://github.com/rafamadriz/friendly-snippets
-          -- {
-          --   'rafamadriz/friendly-snippets',
-          --   config = function()
-          --     require('luasnip.loaders.from_vscode').lazy_load()
-          --   end,
-          -- },
+          {
+            'rafamadriz/friendly-snippets',
+            config = function()
+              require('luasnip.loaders.from_vscode').lazy_load()
+              require('luasnip').filetype_extend('lua', { 'luadoc' })
+              require('luasnip').filetype_extend('cpp', { 'cppdoc' })
+            end,
+          },
         },
       },
       'saadparwaiz1/cmp_luasnip',
@@ -820,6 +833,26 @@ require('lazy').setup({
     end,
   },
 
+  {
+    'ray-x/lsp_signature.nvim',
+    event = 'InsertEnter',
+    opts = {
+      bind = true, -- Bind the plugin to LSP
+      handler_opts = { border = 'rounded' }, -- Popup border style
+      floating_window = true, -- Show signature in a floating window
+      hint_enable = false, -- Disable inline hints (optional, keeps it cleaner)
+      always_trigger = true, -- Show signature help automatically on trigger characters
+      auto_close_after = nil, -- Keep popup open until done
+      toggle_key = '<C-s>', -- Optional key to toggle signature help
+      select_signature_key = '<C-n>', -- Optional key to cycle through multiple signatures
+      max_height = 12, -- Max height of the popup
+      max_width = 80, -- Max width of the popup
+      transparency = nil, -- Opaque popup (set to 10-100 for transparency)
+    },
+    config = function(_, opts)
+      require('lsp_signature').setup(opts)
+    end,
+  },
   { -- You can easily change to a different colorscheme.
     -- Change the name of the colorscheme plugin below, and then
     -- change the command in the config to whatever the name of that colorscheme is.
