@@ -171,15 +171,6 @@ vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous [D]
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next [D]iagnostic message' })
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
-vim.keymap.set('n', '<leader>fr', function()
-  require('telescope.builtin').lsp_references()
-end, { noremap = true, silent = true, desc = '[F]ind [R]eferences' })
-
-vim.keymap.set('n', '<leader>yp', function()
-  local filepath = vim.fn.expand '%:p'
-  vim.fn.setreg('+', filepath)
-  print('Copied file path to clipboard: ' .. filepath)
-end, { desc = '[Y]ank [P]ath' })
 
 -- Key mappings for moving lines or blocks of text up and down.
 -- Using <Alt-Up> to move the current line or visual selection up.
@@ -275,14 +266,14 @@ vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower win
 vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
 
 --debugging
-vim.keymap.set('n', '<F5>', ":lua require'dap'.continue()<CR>")
-vim.keymap.set('n', '<F10>', ":lua require'dap'.step_over()<CR>")
-vim.keymap.set('n', '<F11>', ":lua require'dap'.step_into()<CR>")
-vim.keymap.set('n', '<F12>', ":lua require'dap'.step_out()<CR>")
-vim.keymap.set('n', '<leader>b', ":lua require'dap'.toggle_breakpoint()<CR>")
-vim.keymap.set('n', '<leader>B', ":lua require'dap'.set_breakpoint(vim.fn.input('Breakpoint condition: '))<CR>")
-vim.keymap.set('n', '<leader>lp', ":lua require'dap'.set_breakpoint(nil, nil, vim.fn.input('Log point message '))<CR>")
-vim.keymap.set('n', '<leader>dr', ":lua require'dap'.repl.open()<CR>")
+-- vim.keymap.set('n', '<F5>', ":lua require'dap'.continue()<CR>")
+-- vim.keymap.set('n', '<F10>', ":lua require'dap'.step_over()<CR>")
+-- vim.keymap.set('n', '<F11>', ":lua require'dap'.step_into()<CR>")
+-- vim.keymap.set('n', '<F12>', ":lua require'dap'.step_out()<CR>")
+-- vim.keymap.set('n', '<leader>b', ":lua require'dap'.toggle_breakpoint()<CR>")
+-- vim.keymap.set('n', '<leader>B', ":lua require'dap'.set_breakpoint(vim.fn.input('Breakpoint condition: '))<CR>")
+-- vim.keymap.set('n', '<leader>lp', ":lua require'dap'.set_breakpoint(nil, nil, vim.fn.input('Log point message '))<CR>")
+-- vim.keymap.set('n', '<leader>dr', ":lua require'dap'.repl.open()<CR>")
 
 vim.keymap.set('n', '<leader>ov', function()
   vim.cmd 'w' -- Save the current buffer
@@ -532,11 +523,93 @@ require('lazy').setup({
           follow = true, -- Follow symlinks
           hidden = false, -- Exclude hidden files
           no_ignore = false, -- Respect .gitignore
+          path_display = { 'absolute' }, -- From previous fix for path visibility
+          layout_strategy = 'center', -- Use center layout
+          layout_config = {
+            width = 0.6, -- 60% of window width
+            height = 0.4, -- 40% of window height for prompt/results
+            preview_cutoff = 0, -- Always show preview
+            anchor = 'N', -- Anchor to top-center (preview below prompt/results)
+          },
+          file_ignore_patterns = {
+            '.bak',
+            '.png',
+            '.gif',
+            '.xcf',
+            '.psd',
+            '.ai',
+            '.spine',
+            '.bin',
+            '.wpress',
+            '.exe',
+            '.pdb',
+            '.sln',
+            '.filter',
+            '.user',
+            '.dll',
+            '.ico',
+            '.cur',
+          },
         }
       end, { desc = '[S]earch [F]iles in Save & BH Engine' })
+
+      vim.keymap.set('n', '<leader>fr', function()
+        local entry_display = require 'telescope.pickers.entry_display'
+        require('telescope.builtin').lsp_references {
+          layout_strategy = 'center',
+          layout_config = {
+            width = 0.9,
+            height = 0.4,
+            preview_cutoff = 0,
+            anchor = 'N',
+          },
+          path_display = { 'absolute' },
+          show_line = true,
+          entry_maker = function(entry)
+            local filename = entry.filename or (entry.uri and vim.uri_to_fname(entry.uri)) or '<unknown>'
+            local lnum = entry.lnum or 1
+            local lnumStr = tostring(lnum)
+            local displayer = entry_display.create {
+              separator = ' ',
+              items = {
+                { width = #filename }, -- Path
+                { width = #lnumStr }, -- Line number
+                { remaining = true }, -- Code snippet
+              },
+            }
+            local text = (entry.text or ''):gsub('^%s+', ''):gsub('%s+$', '')
+            return {
+              value = entry,
+              ordinal = filename .. ':' .. lnum .. ':' .. text,
+              filename = filename,
+              lnum = lnum,
+              col = entry.col or 1,
+              display = function()
+                return displayer {
+                  { filename, 'TelescopeResultsIdentifier' },
+                  { lnumStr, 'TelescopeResultsLineNr' },
+                  { text, 'TelescopeResultsNormal' },
+                }
+              end,
+            }
+          end,
+        }
+      end, { noremap = true, silent = true, desc = '[F]ind [R]eferences' })
+
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
-      vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
+      vim.keymap.set('n', '<leader>sg', function()
+        require('telescope.builtin').live_grep {
+          layout_strategy = 'center',
+          layout_config = {
+            width = 0.6, -- 60% of window width
+            height = 0.4, -- 40% of window height for prompt/results
+            preview_cutoff = 0, -- Always show preview
+            anchor = 'N', -- Anchor to top-center (preview below prompt/results)
+          },
+          path_display = { 'absolute' }, -- Ensure paths are visible
+        }
+      end, { noremap = true, silent = true, desc = '[S]earch by [G]rep' })
       vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
@@ -989,6 +1062,9 @@ require('lazy').setup({
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
+    dependencies = {
+      'nvim-treesitter/nvim-treesitter-textobjects',
+    },
     opts = {
       ensure_installed = { 'bash', 'c', 'html', 'lua', 'luadoc', 'markdown', 'vim', 'vimdoc' },
       -- Autoinstall languages that are not installed
@@ -1001,6 +1077,18 @@ require('lazy').setup({
         additional_vim_regex_highlighting = { 'ruby' },
       },
       indent = { enable = true, disable = { 'ruby' } },
+      textobjects = {
+        select = {
+          enable = true,
+          lookahead = true,
+          keymaps = {
+            ['if'] = '@function.inner', -- Yank inside function body
+            ['af'] = '@function.outer', -- Yank entire function
+            ['ib'] = '@block.inner', -- Inner block (for if, for, while, etc.)
+            ['ab'] = '@block.outer', -- Outer block
+          },
+        },
+      },
     },
     config = function(_, opts)
       -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
