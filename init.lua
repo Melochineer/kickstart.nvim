@@ -514,10 +514,10 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sf', function()
         builtin.find_files {
           search_dirs = {
-            'F:\\Visual_Studio\\bh_engine',
-            'C:\\Users\\Andrew\\Documents\\My Games\\Veilslash',
-            'C:\\svn\\repo\\Da_Vi_Media',
-            'C:\\Users\\Andrew\\AppData\\Local\\nvim',
+            os.getenv 'BH_ENGINE_PATH',
+            os.getenv 'DA_VI_MEDIA_PATH',
+            vim.env.HOME .. '\\Documents\\My Games\\Veilslash',
+            vim.fn.stdpath 'config',
           },
           prompt_title = 'Game Save & BH Engine Files',
           follow = true, -- Follow symlinks
@@ -549,6 +549,8 @@ require('lazy').setup({
             '.dll',
             '.ico',
             '.cur',
+            '.aup3',
+            '.wav',
           },
         }
       end, { desc = '[S]earch [F]iles in Save & BH Engine' })
