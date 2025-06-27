@@ -279,7 +279,7 @@ vim.keymap.set('n', '<leader>ov', function()
   vim.cmd 'w' -- Save the current buffer
   local file = vim.fn.shellescape(vim.fn.escape(vim.fn.expand '%:p', '\\'))
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
-  vim.cmd('!powershell -File C:\\Users\\Andrew\\AppData\\Local\\nvim\\open_in_vs.ps1 \\"' .. file .. '\\" ' .. row .. ' ' .. col + 1)
+  vim.cmd('!powershell -File ' .. vim.fn.stdpath 'config' .. '\\open_in_vs.ps1 \\"' .. file .. '\\" ' .. row .. ' ' .. col + 1)
 end, { desc = '[O]pen [V]isual Studio' })
 
 vim.keymap.set('n', '<leader>ym', function()
