@@ -306,6 +306,8 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
+vim.keymap.set('n', '<leader><F5>', vim.cmd.UndotreeToggle)
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
@@ -532,25 +534,26 @@ require('lazy').setup({
             anchor = 'N', -- Anchor to top-center (preview below prompt/results)
           },
           file_ignore_patterns = {
-            '.bak',
-            '.png',
-            '.gif',
-            '.xcf',
-            '.psd',
-            '.ai',
-            '.spine',
-            '.bin',
-            '.wpress',
-            '.exe',
-            '.pdb',
-            '.sln',
-            '.filter',
-            '.user',
-            '.dll',
-            '.ico',
-            '.cur',
-            '.aup3',
-            '.wav',
+            '%.bak$',
+            '%.png$',
+            '%.gif$',
+            '%.xcf$',
+            '%.psd$',
+            '%.ai$',
+            '%.spine$',
+            '%.bin$',
+            '%.wpress$',
+            '%.exe$',
+            '%.pdb$',
+            '%.sln$',
+            '%.filter$',
+            '%.user$',
+            '%.dll$',
+            '%.ico$',
+            '%.cur$',
+            '%.aup3$',
+            '%.wav$',
+            '%.mp4$',
           },
         }
       end, { desc = '[S]earch [F]iles in Save & BH Engine' })
@@ -1176,6 +1179,7 @@ require('lazy').setup({
   { 'https://github.com/Raimondi/delimitMate' },
   { 'https://github.com/svermeulen/vim-yoink' },
   { 'https://github.com/svermeulen/vim-subversive' },
+  { 'mbbill/undotree' },
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
