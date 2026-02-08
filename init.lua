@@ -170,7 +170,7 @@ vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous [D]iagnostic message' })
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next [D]iagnostic message' })
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
-vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
+vim.keymap.set('n', '<leader>qd', vim.diagnostic.setloclist, { desc = 'Open [Q]uickfix [D]iagnostic list' })
 
 -- Key mappings for moving lines or blocks of text up and down.
 -- Using <Alt-Up> to move the current line or visual selection up.
@@ -316,6 +316,115 @@ if not vim.loop.fs_stat(lazypath) then
   vim.fn.system { 'git', 'clone', '--filter=blob:none', '--branch=stable', lazyrepo, lazypath }
 end ---@diagnostic disable-next-line: undefined-field
 vim.opt.rtp:prepend(lazypath)
+
+vim.o.makeprg = '"./build.bat"'
+
+-- MSVC-friendly errorformat (covers file(line): and file(line,col): plus clang/gcc-ish)
+local msvc_efm = table.concat({
+  [[%f(%l\,%c): %trror %n: %m]],
+  [[%f(%l\,%c): %tarning %n: %m]],
+  [[%f(%l): %trror %n: %m]],
+  [[%f(%l): %tarning %n: %m]],
+  [[%f(%l\,%c): %m]],
+  [[%f(%l): %m]],
+  [[%-G%.%#]],
+}, ",")
+
+-- ANSI stripper
+local function strip_ansi(str)
+  if type(str) ~= "string" or str == "" then return str end
+  return str:gsub("\27%[[0-9;?]*[%a]", "")
+end
+
+vim.keymap.set("n", "<leader>b", function()
+  print("Started Build")
+  vim.cmd("wa")
+
+local all_lines = {}
+
+vim.fn.jobstart({ "cmd.exe", "/C", "build.bat" }, {
+  stdout_buffered = false,
+  stderr_buffered = false,
+
+  on_stdout = function(_, data)
+    if not data then return end
+    for i = 1, #data do
+      local line = data[i]
+      if line and line ~= "" then
+        all_lines[#all_lines + 1] = strip_ansi(line)
+      end
+    end
+  end,
+
+  on_stderr = function(_, data)
+    if not data then return end
+    for i = 1, #data do
+      local line = data[i]
+      if line and line ~= "" then
+        all_lines[#all_lines + 1] = strip_ansi(line)
+      end
+    end
+  end,
+
+  on_exit = function(_, exit_code)
+    vim.schedule(function()
+      local old_efm = vim.o.errorformat
+      vim.o.errorformat = msvc_efm
+
+      vim.fn.setqflist({}, "r", {
+        title = "Build Output",
+        lines = all_lines,
+      })
+
+      vim.o.errorformat = old_efm
+
+      local qf = vim.fn.getqflist()
+      local has_valid = false
+      for _, item in ipairs(qf) do
+        if item.valid == 1 then
+          has_valid = true
+          break
+        end
+      end
+
+      if exit_code ~= 0 or has_valid then
+        vim.cmd("copen")
+        if has_valid then pcall(vim.cmd, "cc 1") end
+      else
+        print("Build Successful")
+      end
+    end)
+  end,
+})
+
+  vim.cmd("wincmd p")
+end, { desc = "[B]uild Async" })
+
+-- o quickfix window
+vim.keymap.set('n', '<leader>qe', function()
+  -- Check if a quickfix window is already open
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local buf = vim.api.nvim_win_get_buf(win)
+    if vim.api.nvim_buf_get_option(buf, 'buftype') == 'quickfix' then
+      vim.api.nvim_win_close(win, true)
+      return
+    end
+  end
+
+  -- If no quickfix window, open it if it's non-empty
+  if vim.tbl_isempty(vim.fn.getqflist()) then
+    vim.notify('Quickfix list is empty', vim.log.levels.INFO)
+    return
+  end
+
+  vim.cmd 'copen'
+end, { desc = 'Toggle [Q]uickfix [E]rror window' })
+
+-- F8: next quickfix item
+vim.keymap.set('n', '<F8>', '<cmd>cnext<CR>', { desc = 'Next error' })
+
+-- Shift+F8: previous quickfix item
+vim.keymap.set('n', '<S-F8>', '<cmd>cprev<CR>', { desc = 'Previous error' })
 
 -- [[ Configure and install plugins ]]
 --
@@ -514,14 +623,22 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sf', function()
-        builtin.find_files {
+        local cwd = vim.fn.getcwd()
+        local search_dirs = nil
+        if cwd == os.getenv 'BH_ENGINE_PATH' then
           search_dirs = {
-            os.getenv 'BH_ENGINE_PATH',
+            cwd,
             os.getenv 'DA_VI_MEDIA_PATH',
             vim.env.HOME .. '\\Documents\\My Games\\Veilslash',
             vim.fn.stdpath 'config',
-          },
-          prompt_title = 'Game Save & BH Engine Files',
+          }
+        else
+          search_dirs = { cwd }
+        end
+
+        builtin.find_files {
+          search_dirs = search_dirs,
+          prompt_title = 'Search Files',
           follow = true, -- Follow symlinks
           hidden = false, -- Exclude hidden files
           no_ignore = false, -- Respect .gitignore
@@ -556,7 +673,7 @@ require('lazy').setup({
             '%.mp4$',
           },
         }
-      end, { desc = '[S]earch [F]iles in Save & BH Engine' })
+      end, { desc = '[S]earch [F]iles' })
 
       vim.keymap.set('n', '<leader>fr', function()
         local entry_display = require 'telescope.pickers.entry_display'
@@ -694,7 +811,7 @@ require('lazy').setup({
             'clangd',
             '--background-index',
             '--clang-tidy',
-            '--header-insertion=iwyu',
+            '--header-insertion=never',
             '--completion-style=detailed',
             '--function-arg-placeholders',
             '--fallback-style=llvm',
@@ -806,14 +923,6 @@ require('lazy').setup({
             -- Server-specific configuration for clangd
             if client and client.name == 'clangd' then
               vim.api.nvim_buf_set_keymap(event.buf, 'n', '<leader>h', '<cmd>ClangdSwitchSourceHeader<CR>', { noremap = true, silent = true })
-              if client.server_capabilities.document_formatting then
-                vim.cmd [[
-                  augroup LspFormatting
-                      autocmd! * <buffer>
-                      autocmd BufWritePre <buffer> lua vim.lsp.buf.formatting_sync()
-                  augroup END
-              ]]
-              end
             end
           end
         end,
@@ -865,7 +974,7 @@ require('lazy').setup({
       {
         '<leader>fd',
         function()
-          require('conform').format { async = true, lsp_fallback = true }
+          require('conform').format { async = true, lsp_format = 'never' }
         end,
         mode = '',
         desc = '[F]ormat [D]ocument',
@@ -873,16 +982,6 @@ require('lazy').setup({
     },
     opts = {
       notify_on_error = false,
-      format_on_save = function(bufnr)
-        -- Disable "format_on_save lsp_fallback" for languages that don't
-        -- have a well standardized coding style. You can add additional
-        -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = {}
-        return {
-          timeout_ms = 500,
-          lsp_fallback = not disable_filetypes[vim.bo[bufnr].filetype],
-        }
-      end,
       formatters_by_ft = {
         lua = { 'stylua' },
         cpp = { 'clang-format' },
@@ -1180,6 +1279,9 @@ require('lazy').setup({
   { 'https://github.com/svermeulen/vim-yoink' },
   { 'https://github.com/svermeulen/vim-subversive' },
   { 'mbbill/undotree' },
+  {
+    'chrisbra/csv.vim',
+  },
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
